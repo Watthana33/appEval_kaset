@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>คู่มือการใช้งาน Git & GitHub ฉบับสมบูรณ์ (Step-by-Step Manual) | วษท.มหาสารคาม</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains+Mono', monospace;
+    }
+    .vocational-red {
+      background-color: #932D16;
+    }
+    .vocational-border {
+      border-color: #7A2411;
+    }
+    .text-vocational {
+      color: #932D16;
+    }
+    .card-shadow {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-[#932D16] selection:text-white">
+
+  <!-- Toast Notification สำหรับแจ้งเตือนการคัดลอก -->
+  <div id="copy-toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700 text-xs font-bold flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <span class="text-emerald-400">✓</span>
+    <span id="toast-message">คัดลอกคำสั่งเรียบร้อยแล้ว</span>
+  </div>
+
+  <!-- แถบส่วนหัวด้านบน (Header สีแดงเลือดหมูอาชีวะ) -->
+  <header class="vocational-red text-white shadow-xl border-b-4 vocational-border sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 bg-white rounded-2xl p-1.5 shadow-md shrink-0 flex items-center justify-center">
+          <img src="public/logo_1.png" alt="โลโก้วิทยาลัย" class="w-full h-full object-contain" onerror="this.src='logo_1.png'">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-red-950/80 text-red-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-800/80 uppercase tracking-wider">
+              Git & GitHub Standard Guide
+            </span>
+            <span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+              ฉบับปฏิบัติการจริง (Step-by-Step)
+            </span>
+          </div>
+          <h1 class="font-black text-lg sm:text-xl tracking-tight leading-tight mt-0.5">
+            คู่มือการใช้งาน Git & GitHub ครบทุกกระบวนการ
+          </h1>
+          <p class="text-xs text-red-100/90 font-medium">
+            ระบบประเมินการจัดการเรียนการสอน • วิทยาลัยเกษตรและเทคโนโลยีมหาสารคาม
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Nav Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-1.5 text-xs font-bold">
+        <a href="#case-1" class="px-2.5 py-1.5 bg-red-950/70 hover:bg-red-900 text-red-100 rounded-lg transition-colors border border-red-800/60">
+          กรณี 1: ยังไม่เคยล็อกอิน
+        </a>
+        <a href="#case-2" class="px-2.5 py-1.5 bg-red-950/70 hover:bg-red-900 text-red-100 rounded-lg transition-colors border border-red-800/60">
+          กรณี 2: วิธีตรวจเช็คการล็อกอิน
+        </a>
+        <a href="#case-3" class="px-2.5 py-1.5 bg-red-950/70 hover:bg-red-900 text-red-100 rounded-lg transition-colors border border-red-800/60">
+          กรณี 3: อัปใหม่เมื่อ Git มีการแก้ไข
+        </a>
+        <a href="#case-4" class="px-2.5 py-1.5 bg-red-950/70 hover:bg-red-900 text-red-100 rounded-lg transition-colors border border-red-800/60">
+          กรณี 4: Pull โค้ดไปพัฒนาต่อ
+        </a>
+        <a href="#case-bonus" class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-sm">
+          ⭐ เทคนิคแก้ Conflict & Branch
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- สารบัญและภาพรวมการทำงานของ Git -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1 space-y-10">
+
+    <!-- ภาพรวมความเข้าใจ (Git Conceptual Flow) -->
+    <section class="bg-gradient-to-r from-slate-900 via-red-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-red-900/40">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-xs font-bold border border-red-500/30 mb-3">
+          💡 ทำความเข้าใจโครงสร้างใน 30 วินาที
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight leading-snug">
+          วงจรการทำงานของ Git: จากเครื่องของเรา (Local) สู่คลาวด์ (GitHub)
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
+          Git คือระบบบันทึกประวัติการเปลี่ยนแปลงของไฟล์ในเครื่อง ส่วน GitHub คือเครื่องเซิร์ฟเวอร์บนอินเทอร์เน็ตที่ช่วยเก็บสำรองและแชร์โค้ดให้ทีมงาน
+        </p>
+      </div>
+
+      <!-- Diagram Flow -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-6 text-center text-xs">
+        <div class="bg-slate-800/90 p-4 rounded-2xl border border-slate-700/80 flex flex-col items-center justify-center">
+          <span class="text-2xl mb-1">💻</span>
+          <span class="font-bold text-slate-200">1. Working Directory</span>
+          <span class="text-[11px] text-slate-400 mt-1">ไฟล์ที่เรานั่งเขียนโค้ดใน VS Code</span>
+          <span class="mt-2 text-[10px] font-mono bg-slate-700 text-emerald-400 px-2 py-0.5 rounded font-bold">git add .</span>
+        </div>
+
+        <div class="bg-slate-800/90 p-4 rounded-2xl border border-slate-700/80 flex flex-col items-center justify-center">
+          <span class="text-2xl mb-1">📦</span>
+          <span class="font-bold text-slate-200">2. Staging Area</span>
+          <span class="text-[11px] text-slate-400 mt-1">เตรียมกล่องพร้อมแพ็คเกจบันทึก</span>
+          <span class="mt-2 text-[10px] font-mono bg-slate-700 text-emerald-400 px-2 py-0.5 rounded font-bold">git commit -m "..."</span>
+        </div>
+
+        <div class="bg-slate-800/90 p-4 rounded-2xl border border-slate-700/80 flex flex-col items-center justify-center">
+          <span class="text-2xl mb-1">🗄️</span>
+          <span class="font-bold text-slate-200">3. Local Repository</span>
+          <span class="text-[11px] text-slate-400 mt-1">บันทึกประวัติลงฐานข้อมูลในเครื่อง (.git)</span>
+          <span class="mt-2 text-[10px] font-mono bg-slate-700 text-emerald-400 px-2 py-0.5 rounded font-bold">git push origin main</span>
+        </div>
+
+        <div class="bg-emerald-950/80 p-4 rounded-2xl border border-emerald-700/80 flex flex-col items-center justify-center">
+          <span class="text-2xl mb-1">☁️</span>
+          <span class="font-bold text-emerald-300">4. GitHub Cloud</span>
+          <span class="text-[11px] text-emerald-200/80 mt-1">โค้ดออนไลน์พร้อมส่งให้แอดมินหรือ Deploy</span>
+          <span class="mt-2 text-[10px] font-mono bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded font-bold">git pull origin main</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- กรณีที่ 1: ยังไม่เคยล็อกอินผ่าน Git เลยในครั้งแรก         -->
+    <!-- ======================================================== -->
+    <section id="case-1" class="space-y-4 pt-4">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <span class="w-9 h-9 rounded-xl vocational-red text-white flex items-center justify-center font-black text-base shadow-sm">1</span>
+        <div>
+          <span class="text-[11px] font-extrabold text-vocational uppercase tracking-wider">Scenario 1</span>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">กรณียังไม่ได้ล็อกอินผ่าน Git เลยในครั้งแรก (First-Time Setup)</h2>
+        </div>
+      </div>
+
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        เมื่อคอมพิวเตอร์เพิ่งติดตั้ง Git เป็นครั้งแรก Git จะยังไม่รู้จักว่าคุณคือใคร และยังไม่มีสิทธิ์เชื่อมต่อไปยังบัญชี GitHub ของคุณ ต้องทำตามขั้นตอนดังนี้:
+      </p>
+
+      <div class="space-y-4">
+        
+        <!-- สเต็ป 1.1: ตั้งค่า Identity -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-red-50 text-vocational flex items-center justify-center text-xs font-black border border-red-200">1.1</span>
+              <span>ตั้งค่าชื่อผู้เขียนโค้ดและอีเมล (Git Config User)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium">ทำครั้งแรกครั้งเดียวในเครื่องนี้</span>
+          </div>
+          <p class="text-xs text-slate-600">
+            เปิด Terminal ใน VS Code แล้วพิมพ์ 2 คำสั่งนี้ (เปลี่ยนชื่อและอีเมลให้ตรงกับบัญชี GitHub ของคุณ):
+          </p>
+          <div class="relative group">
+            <pre class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto"><code>git config --global user.name "ชื่อของคุณ"
+git config --global user.email "อีเมลของคุณ@gmail.com"</code></pre>
+            <button onclick="copyCode(this)" class="absolute top-3 right-3 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-lg font-bold transition-all border border-slate-700 flex items-center gap-1">
+              <span>📋 คัดลอก</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- สเต็ป 1.2: การยืนยันสิทธิ์กับ GitHub (Authentication Methods) -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-red-50 text-vocational flex items-center justify-center text-xs font-black border border-red-200">1.2</span>
+              <span>การยืนยันตัวตนกับ GitHub (Authentication) - เลือกทำแบบที่ 1 หรือ 2</span>
+            </h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- วิธีที่ 1: ผ่านเบราว์เซอร์อัตโนมัติ (ง่ายและแนะนำที่สุด) -->
+            <div class="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 space-y-2">
+              <div class="flex items-center gap-1.5 font-bold text-emerald-900 text-xs">
+                <span>⭐ วิธีที่ 1: ผ่านเบราว์เซอร์อัตโนมัติ (แนะนำที่สุด 100%)</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                ใน Git สำหรับ Windows มีโปรแกรม <strong>Git Credential Manager (GCM)</strong> ติดตั้งมาให้อยู่แล้ว:
+              </p>
+              <ol class="list-decimal pl-4 text-xs text-slate-700 space-y-1">
+                <li>เมื่อสั่ง <code class="bg-white px-1 py-0.5 rounded font-mono font-bold text-emerald-800">git push -u origin main</code> ครั้งแรก</li>
+                <li>จะมีหน้าต่างป๊อปอัปเด้งขึ้นมา ถามว่า <strong>"Sign in with your browser"</strong></li>
+                <li>คลิกปุ่มนั้น เบราว์เซอร์จะเปิดหน้าเว็บ GitHub กดปุ่มสีเขียว <strong>"Authorize GitCredentialManager"</strong></li>
+                <li>กลับมาที่ Terminal คำสั่งจะ Push โค้ดขึ้นทันที และเครื่องจะจำรหัสผ่านไว้อัตโนมัติถาวร</li>
+              </ol>
+            </div>
+
+            <!-- วิธีที่ 2: ใช้ Personal Access Token (PAT) -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+              <div class="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                <span>🔑 วิธีที่ 2: ใช้ Personal Access Token (PAT)</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                กรณีที่เครื่องไม่เด้งหน้าต่างเบราว์เซอร์ (GitHub เลิกใช้รหัสผ่านธรรมดาตั้งแต่ปี 2021 แล้ว ต้องใช้ Token แทน):
+              </p>
+              <ol class="list-decimal pl-4 text-xs text-slate-700 space-y-1">
+                <li>เปิด GitHub ➔ คลิกรูปโปรไฟล์ขวาบน ➔ <strong>Settings</strong></li>
+                <li>เลื่อนลงซ้ายล่างสุด ➔ <strong>Developer settings</strong> ➔ <strong>Personal access tokens</strong> ➔ <strong>Tokens (classic)</strong></li>
+                <li>กด <strong>Generate new token (classic)</strong> ➔ ติ๊กถูกช่อง <code class="font-bold">repo</code> และ <code class="font-bold">workflow</code></li>
+                <li>กด <strong>Generate token</strong> แล้วคัดลอกคีย์ยาวๆ เก็บไว้</li>
+                <li>เมื่อสั่ง git push แล้วถาม Password ให้นำ Token นี้ไปวางแทนรหัสผ่าน</li>
+              </ol>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- กรณีที่ 2: กรณีเคยล็อกอินแล้ว ตรวจเช็คอย่างไร              -->
+    <!-- ======================================================== -->
+    <section id="case-2" class="space-y-4 pt-4">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <span class="w-9 h-9 rounded-xl vocational-red text-white flex items-center justify-center font-black text-base shadow-sm">2</span>
+        <div>
+          <span class="text-[11px] font-extrabold text-vocational uppercase tracking-wider">Scenario 2</span>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">กรณีเคยล็อกอินไว้แล้ว สังเกตหรือมีวิธีตรวจเช็คอย่างไร?</h2>
+        </div>
+      </div>
+
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        หลายท่านจำไม่ได้ว่าคอมพิวเตอร์เครื่องนี้เคยผูกกับ GitHub ไว้หรือยัง หรือผูกไว้ด้วยบัญชีไหน มี 3 วิธีตรวจเช็คที่แม่นยำ 100%:
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- วิธีตรวจ 1: เช็คผ่าน Git CLI -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900 text-sm">
+            <span class="p-1 rounded-lg bg-blue-50 text-blue-600">🖥️</span>
+            <span>วิธีที่ 1: ตรวจผ่าน Terminal</span>
+          </div>
+          <p class="text-xs text-slate-600">พิมพ์คำสั่งเพื่อดูว่าเครื่องตั้งค่าชื่อและอีเมลใครไว้:</p>
+          <div class="relative">
+            <pre class="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono"><code>git config user.name
+git config user.email</code></pre>
+            <button onclick="copyCode(this)" class="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] rounded font-bold">คัดลอก</button>
+          </div>
+          <div class="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-200">
+            <strong>ผลลัพธ์:</strong> ถ้าขึ้นชื่อและอีเมล = มีการตั้งค่าแล้ว หากว่างเปล่า = ยังไม่เคยตั้งค่า
+          </div>
+        </div>
+
+        <!-- วิธีตรวจ 2: เช็คผ่าน Windows Credential Manager -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900 text-sm">
+            <span class="p-1 rounded-lg bg-amber-50 text-amber-600">🪟</span>
+            <span>วิธีที่ 2: ตรวจใน Windows</span>
+          </div>
+          <p class="text-xs text-slate-600">ตรวจดูว่า Windows จำกุญแจ GitHub ไว้หรือไม่:</p>
+          <div class="p-2.5 bg-slate-900 text-amber-300 rounded-xl text-xs font-mono">
+            กดปุ่ม Win + R ➔ พิมพ์<br>
+            <code class="text-white font-bold">control keymgr.dll</code>
+          </div>
+          <div class="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-200">
+            <strong>วิธีดู:</strong> ไปที่ <em>Windows Credentials</em> เลื่อนดูว่ามีรายการ <code class="font-bold text-slate-800">git:https://github.com</code> หรือไม่ ถ้ามี = ล็อกอินค้างไว้แล้ว! (ถ้าจะเปลี่ยนบัญชี ให้กด Remove ลบตรงนี้)
+          </div>
+        </div>
+
+        <!-- วิธีตรวจ 3: เช็คผ่าน GitHub CLI -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900 text-sm">
+            <span class="p-1 rounded-lg bg-purple-50 text-purple-600">🐙</span>
+            <span>วิธีที่ 3: เช็คสถานะตรงกับ GitHub</span>
+          </div>
+          <p class="text-xs text-slate-600">ทดสอบเชื่อมต่อไปยังเซิร์ฟเวอร์ GitHub:</p>
+          <div class="relative">
+            <pre class="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono"><code>ssh -T git@github.com</code></pre>
+            <button onclick="copyCode(this)" class="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] rounded font-bold">คัดลอก</button>
+          </div>
+          <div class="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-200">
+            <strong>ผลลัพธ์:</strong> ถ้าสำเร็จ จะขึ้นข้อความ:<br>
+            <code class="text-emerald-700 font-bold">Hi USERNAME! You've successfully authenticated</code>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- กรณีที่ 3: เคยอัปขึ้นแล้ว แต่บน Git มีการแก้ไข แล้วจะอัปใหม่  -->
+    <!-- ======================================================== -->
+    <section id="case-3" class="space-y-4 pt-4">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <span class="w-9 h-9 rounded-xl vocational-red text-white flex items-center justify-center font-black text-base shadow-sm">3</span>
+        <div>
+          <span class="text-[11px] font-extrabold text-vocational uppercase tracking-wider">Scenario 3</span>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">กรณีเคยอัปไฟล์ขึ้น Git แล้ว แต่บน Git มีการแก้ไข แล้วจะอัปใหม่</h2>
+        </div>
+      </div>
+
+      <!-- กล่องเตือนข้อผิดพลาดที่ทุกคนต้องเจอ -->
+      <div class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs sm:text-sm text-amber-900 flex items-start gap-3">
+        <span class="text-xl shrink-0">⚠️</span>
+        <div>
+          <strong class="font-bold">ปัญหาที่มักจะเจอเมื่อสั่ง <code class="bg-amber-200/80 px-1 py-0.5 rounded font-mono">git push</code> ทันที:</strong>
+          <p class="text-xs text-amber-800 mt-0.5">
+            Git จะฟ้อง Error สีแดง: <code class="font-mono bg-white px-1.5 py-0.5 rounded text-rose-600 font-bold">[rejected] main -> main (fetch first) error: failed to push some refs</code><br>
+            <strong>สาเหตุ:</strong> บน GitHub มีการเปลี่ยนแปลงใหม่กว่าในเครื่องเรา (เช่น มีคนอื่นแก้ หรือเรากดแก้ README บนเว็บ GitHub) Git จึงไม่อนุญาตให้ push ทับ เพราะกลัวไฟล์สูญหาย
+          </p>
+        </div>
+      </div>
+
+      <!-- ขั้นตอนแก้ปัญหา 4 สเต็ป -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 card-shadow space-y-4">
+        <h3 class="font-bold text-slate-900 text-sm">
+          ขั้นตอนที่ถูกต้อง: "บันทึกในเครื่อง ➔ ดึงของบนเว็บลงมาผสาน ➔ ผลักงานขึ้นใหม่"
+        </h3>
+
+        <div class="space-y-3">
+          
+          <div class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="w-6 h-6 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">1</span>
+            <div class="space-y-1.5 flex-1">
+              <strong class="text-xs font-bold text-slate-900 block">บันทึกงานที่เราเพิ่งแก้ไขในเครื่องก่อน:</strong>
+              <div class="relative">
+                <pre class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg text-xs font-mono"><code>git add .
+git commit -m "อัปเดตระบบและแก้ไขคำถามแบบประเมิน"</code></pre>
+                <button onclick="copyCode(this)" class="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] rounded font-bold">คัดลอก</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="w-6 h-6 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">2</span>
+            <div class="space-y-1.5 flex-1">
+              <strong class="text-xs font-bold text-slate-900 block">ดึงส่วนที่ถูกแก้ไขบน GitHub ลงมาผสานกับงานในเครื่อง (Pull with Rebase):</strong>
+              <div class="relative">
+                <pre class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg text-xs font-mono"><code>git pull origin main --rebase</code></pre>
+                <button onclick="copyCode(this)" class="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] rounded font-bold">คัดลอก</button>
+              </div>
+              <p class="text-[11px] text-slate-500">
+                คำสั่งนี้จะนำงานของบนเว็บมาต่อไว้เป็นฐาน แล้วเอางานที่เราเพิ่งทำมาต่อยอดด้านบนอย่างสวยงาม
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="w-6 h-6 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0">3</span>
+            <div class="space-y-1.5 flex-1">
+              <strong class="text-xs font-bold text-slate-900 block">ผลักดันโค้ดที่ผสานแล้วขึ้นสู่ GitHub:</strong>
+              <div class="relative">
+                <pre class="bg-slate-900 text-emerald-400 p-2.5 rounded-lg text-xs font-mono"><code>git push origin main</code></pre>
+                <button onclick="copyCode(this)" class="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] rounded font-bold">คัดลอก</button>
+              </div>
+              <p class="text-[11px] text-emerald-600 font-bold">
+                ✓ โค้ดจะถูกส่งขึ้น GitHub สำเร็จเรียบร้อยโดยไม่ติด Error!
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- กรณีที่ 4: กรณีจะ pull ไฟล์จาก git มาพัฒนาต่อแล้วอัปขึ้นใหม่ -->
+    <!-- ======================================================== -->
+    <section id="case-4" class="space-y-4 pt-4">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <span class="w-9 h-9 rounded-xl vocational-red text-white flex items-center justify-center font-black text-base shadow-sm">4</span>
+        <div>
+          <span class="text-[11px] font-extrabold text-vocational uppercase tracking-wider">Scenario 4</span>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">กรณีจะ Pull/Clone ไฟล์จาก Git มาพัฒนาหรือปรับปรุงต่อ</h2>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- แบบที่ 4.1: โคลนลงคอมพิวเตอร์เครื่องใหม่ (Clone from Scratch) -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span class="font-bold text-slate-900 text-sm">💻 แบบที่ 4.1: โคลนลงคอมพิวเตอร์เครื่องใหม่ (Clone)</span>
+            <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">New PC / Laptop</span>
+          </div>
+          <p class="text-xs text-slate-600">เมื่อย้ายไปทำที่บ้าน หรือเปลี่ยนเครื่องคอมพิวเตอร์ใหม่:</p>
+
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 bg-slate-900 text-emerald-400 rounded-xl font-mono overflow-x-auto">
+              <span class="text-slate-400"># 1. ดึงโค้ดลงมาที่เครื่องใหม่</span><br>
+              git clone https://github.com/USER/REPO.git<br>
+              cd REPO<br><br>
+              <span class="text-slate-400"># 2. จำเป็นมาก! ติดตั้งไลบรารี</span><br>
+              npm install<br><br>
+              <span class="text-slate-400"># 3. สร้างไฟล์ .env จากตัวอย่าง</span><br>
+              cp .env.example .env<br>
+              <span class="text-amber-300">(เปิดแก้ .env ใส่ URL และ Anon Key จริง)</span><br><br>
+              <span class="text-slate-400"># 4. ทดสอบรันเซิร์ฟเวอร์</span><br>
+              npm run dev
+            </div>
+          </div>
+        </div>
+
+        <!-- แบบที่ 4.2: เครื่องเดิมที่มีโฟลเดอร์อยู่แล้ว ดึงอัปเดตล่าสุด (Pull) -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span class="font-bold text-slate-900 text-sm">🔄 แบบที่ 4.2: เครื่องเดิม ดึงอัปเดตล่าสุดก่อนเริ่มงาน (Pull)</span>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Daily Workflow</span>
+          </div>
+          <p class="text-xs text-slate-600">ก่อนเริ่มเขียนโค้ดต่อในแต่ละวัน เพื่อให้ได้เวอร์ชันล่าสุดเสมอ:</p>
+
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 bg-slate-900 text-emerald-400 rounded-xl font-mono overflow-x-auto">
+              <span class="text-slate-400"># 1. ตรวจสอบว่าไม่มีโค้ดค้าง</span><br>
+              git status<br><br>
+              <span class="text-slate-400"># 2. ดึงโค้ดล่าสุดจาก GitHub</span><br>
+              git pull origin main<br><br>
+              <span class="text-slate-400"># 3. (ถ้ามีการเพิ่มไลบรารีใหม่)</span><br>
+              npm install<br><br>
+              <span class="text-slate-400"># 4. เริ่มเขียนโค้ดและทดสอบตามปกติ</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- สเต็ปหลังจากปรับปรุงโค้ดเสร็จแล้ว จะอัปขึ้นใหม่ -->
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <span>🚀 เมื่อพัฒนา/ปรับปรุงโค้ดเสร็จแล้ว สั่ง 3 คำสั่งมาตรฐานนี้เพื่ออัปขึ้น GitHub:</span>
+        </h3>
+        <div class="relative">
+          <pre class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs font-mono overflow-x-auto"><code># สเต็ป 1: ตรวจสอบและเพิ่มไฟล์ที่แก้ไข
+git add .
+
+# สเต็ป 2: บันทึก Commit พร้อมข้อความอธิบายสิ่งที่ทำ
+git commit -m "ปรับปรุงหน้าแบบประเมินและเพิ่มฟังก์ชันส่งออก Excel"
+
+# สเต็ป 3: ผลักดันโค้ดขึ้นสู่ GitHub
+git push origin main</code></pre>
+          <button onclick="copyCode(this)" class="absolute top-3 right-3 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-lg font-bold border border-slate-700">
+            คัดลอกทั้งหมด
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- กรณีพิเศษเสริม: เทคนิคแก้ Conflict & การทำงานด้วย Branch   -->
+    <!-- ======================================================== -->
+    <section id="case-bonus" class="space-y-4 pt-4">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <span class="w-9 h-9 rounded-xl vocational-red text-white flex items-center justify-center font-black text-base shadow-sm">⭐</span>
+        <div>
+          <span class="text-[11px] font-extrabold text-vocational uppercase tracking-wider">Pro Tips & Bonus Scenarios</span>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">เทคนิคสำคัญที่ต้องรู้: แก้โค้ดชนกัน (Conflict) และการใช้ Branch</h2>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- การแก้ Merge Conflict -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900 text-sm">
+            <span class="text-rose-600 font-black">⚡</span>
+            <span>กรณีเกิด Merge Conflict (โค้ดในบรรทัดเดียวกันชนกัน)</span>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            เมื่อคุณกับเพื่อนแก้ไฟล์เดียวกันในบรรทัดเดียวกัน Git จะใส่สัญลักษณ์นี้ในโค้ด:
+          </p>
+          <div class="bg-slate-900 p-3 rounded-xl text-[11px] font-mono text-slate-200 space-y-1">
+            <div class="text-cyan-400">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD (โค้ดในเครื่องของเรา)</div>
+            <div>const title = "แบบประเมินออนไลน์";</div>
+            <div class="text-amber-400">======= (เส้นแบ่ง)</div>
+            <div>const title = "แบบประเมิน วษท.มหาสารคาม";</div>
+            <div class="text-emerald-400">&gt;&gt;&gt;&gt;&gt;&gt;&gt; origin/main (โค้ดที่ดึงมาจาก GitHub)</div>
+          </div>
+          <div class="p-3 bg-emerald-50 rounded-xl text-xs text-emerald-900 border border-emerald-200 space-y-1">
+            <strong>วิธีแก้ใน VS Code:</strong>
+            <p class="text-[11px] text-emerald-800">
+              คลิกปุ่มลัดด้านบน: <strong>Accept Current</strong> (เอาของเครื่องเรา), <strong>Accept Incoming</strong> (เอาของบนเว็บ), หรือลบสัญลักษณ์แล้วจัดข้อความตามที่ต้องการ จากนั้นสั่ง <code class="font-bold">git add .</code> แล้ว <code class="font-bold">git commit -m "Resolve conflict"</code> แล้ว push ได้เลย
+            </p>
+          </div>
+        </div>
+
+        <!-- การใช้ Branch แยกกิ่งฟีเจอร์ -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 card-shadow space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900 text-sm">
+            <span class="text-emerald-600 font-black">🌿</span>
+            <span>การใช้ Branch (สร้างกิ่งทดลอง ไม่ให้กระทบระบบจริง)</span>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            เมื่อต้องการลองทำฟีเจอร์ใหม่ที่ไม่แน่ใจว่าจะเวิร์กไหม ให้แยกกิ่งออกมาทำ:
+          </p>
+          <div class="bg-slate-900 p-3 rounded-xl text-xs font-mono text-emerald-400 space-y-1 overflow-x-auto">
+            <span class="text-slate-400"># สร้างและสลับไปกิ่งใหม่</span><br>
+            git checkout -b feature-dark-mode<br><br>
+            <span class="text-slate-400"># สลับกลับมากิ่งหลัก</span><br>
+            git checkout main<br><br>
+            <span class="text-slate-400"># ดึงฟีเจอร์ที่ทำเสร็จแล้วมารวมเข้า main</span><br>
+            git merge feature-dark-mode
+          </div>
+        </div>
+
+      </div>
+
+      <!-- สรุปตารางคำสั่งด่วน Cheat Sheet -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 card-shadow space-y-4">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <span>📑 ตารางสรุปคำสั่ง Git ที่ใช้บ่อยที่สุดในชีวิตประจำวัน (Git Cheat Sheet)</span>
+        </h3>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                <th class="p-3 w-48 font-mono">คำสั่ง (Command)</th>
+                <th class="p-3">ความหมายและการใช้งาน</th>
+                <th class="p-3 w-28 text-center">คัดลอก</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-medium">
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git status</td>
+                <td class="p-3 text-slate-600">เช็คสถานะไฟล์ว่ามีไฟล์ไหนถูกแก้ไข หรือมีไฟล์แปลกปลอมหลุดมาไหม</td>
+                <td class="p-3 text-center"><button onclick="copyText('git status')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git pull origin main</td>
+                <td class="p-3 text-slate-600">ดึงโค้ดล่าสุดจาก GitHub ลงมาที่เครื่อง</td>
+                <td class="p-3 text-center"><button onclick="copyText('git pull origin main')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git add .</td>
+                <td class="p-3 text-slate-600">นำไฟล์ที่แก้ไขทั้งหมดเข้าสู่ Staging เพื่อเตรียม Commit</td>
+                <td class="p-3 text-center"><button onclick="copyText('git add .')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git commit -m "..."</td>
+                <td class="p-3 text-slate-600">บันทึกเวอร์ชันงานพร้อมใส่ข้อความอธิบายการแก้ไข</td>
+                <td class="p-3 text-center"><button onclick="copyText('git commit -m &quot;update&quot;')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git push origin main</td>
+                <td class="p-3 text-slate-600">ส่งงานทั้งหมดที่ commit แล้วขึ้นสู่คลาวด์ GitHub</td>
+                <td class="p-3 text-center"><button onclick="copyText('git push origin main')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git restore &lt;file&gt;</td>
+                <td class="p-3 text-slate-600">ยกเลิกการแก้ไขไฟล์นั้นๆ คืนค่ากลับเป็นเวอร์ชันเดิมก่อนแก้</td>
+                <td class="p-3 text-center"><button onclick="copyText('git restore .')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono font-bold text-emerald-700">git log --oneline -n 5</td>
+                <td class="p-3 text-slate-600">ดูประวัติการบันทึก (Commit) ย้อนหลัง 5 ครั้งล่าสุดแบบย่อ</td>
+                <td class="p-3 text-center"><button onclick="copyText('git log --oneline -n 5')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold">คัดลอก</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer สีแดงอาชีวะ -->
+  <footer class="vocational-red text-white py-6 border-t-4 vocational-border mt-12 text-center text-xs text-red-100/80">
+    <div class="max-w-5xl mx-auto px-4 space-y-1">
+      <p class="font-bold text-white text-sm">คู่มือมาตรฐานการจัดการระบบซอร์สโค้ดและควบคุมเวอร์ชัน (Git & GitHub Standard Manual)</p>
+      <p>ระบบประเมินความพึงพอใจการจัดการเรียนการสอน • วิทยาลัยเกษตรและเทคโนโลยีมหาสารคาม</p>
+      <p class="text-[11px] text-red-200/60 pt-1">สังกัดสำนักงานคณะกรรมการการอาชีวศึกษา (สอศ.) กระทรวงศึกษาธิการ</p>
+    </div>
+  </footer>
+
+  <!-- JavaScript สำหรับฟังก์ชันคัดลอกโค้ดคลิกเดียว -->
+  <script>
+    function showToast(text) {
+      const toast = document.getElementById('copy-toast');
+      const msg = document.getElementById('toast-message');
+      msg.textContent = text || 'คัดลอกคำสั่งเรียบร้อยแล้ว';
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2000);
+    }
+
+    function copyCode(btn) {
+      const pre = btn.parentElement.querySelector('pre') || btn.parentElement.querySelector('code');
+      const text = pre.innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('คัดลอกคำสั่งเรียบร้อยแล้ว');
+      });
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('คัดลอก: ' + text);
+      });
+    }
+  </script>
+
+</body>
+</html>

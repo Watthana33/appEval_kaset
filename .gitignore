@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build output
+dist/
+dist-ssr/
+build/
+
+# Environment Variables & Secrets (ห้ามนำขึ้น Git เด็ดขาด)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & Local AI Assistant files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.kilo/
+.gemini/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Deployment & Hosting temporary files
+.vercel/
+.netlify/
+
+# OS metadata & temporary files
+.DS_Store
+Thumbs.db
+*.pem
+*.key
+*.cert

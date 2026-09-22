@@ -1,0 +1,30 @@
+name: Keep Supabase Database Alive
+
+# ทริกเกอร์ทำงานอัตโนมัติทุก 3 วัน เวลา 07:00 น. (เวลาไทย UTC+7 คือ 00:00 UTC)
+# และรองรับการกดรันด้วยตัวเอง (Manual trigger: workflow_dispatch)
+on:
+  schedule:
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API to prevent auto-pause
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "⚠️ Warning: SUPABASE_URL or SUPABASE_KEY secrets not set. Skipping ping."
+            exit 0
+          fi
+          echo "🚀 Pinging Supabase REST endpoint: $SUPABASE_URL"
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "$SUPABASE_URL/rest/v1/departments?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          
+          echo "Response:"
+          echo "$RESPONSE"
+          echo "✅ Supabase ping completed successfully. 7-day inactivity timer reset!"
