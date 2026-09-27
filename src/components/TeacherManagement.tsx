@@ -16,7 +16,8 @@ import {
   Image as ImageIcon,
   Sparkles,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Crop
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -28,6 +29,7 @@ import {
   formatGoogleDriveUrl 
 } from '../services/dataService';
 import { Teacher, Department } from '../types/index';
+import { ImageCropperModal } from './ImageCropperModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80';
 
@@ -97,41 +99,59 @@ export const TeacherManagement: React.FC = () => {
     loadData();
   }, []);
 
-  // ฟังก์ชันช่วยบีบอัดรูปภาพจากเครื่องผู้ใช้ เพื่อให้โหลดเร็วและไม่เปลืองพื้นที่
-  const handlePhotoUpload = (file: File, callback: (url: string) => void) => {
+  // Cropper Modal State (สำหรับเลื่อนตำแหน่ง ซูม และครอบตัดรูปอาจารย์)
+  const [cropperState, setCropperState] = useState<{
+    isOpen: boolean;
+    imageSrc: string;
+    target: 'add' | 'edit';
+    teacherName?: string;
+  }>({
+    isOpen: false,
+    imageSrc: '',
+    target: 'add',
+    teacherName: '',
+  });
+
+  // เมื่อเลือกไฟล์รูปภาพจากเครื่อง ให้เปิดหน้าต่างปรับตำแหน่งและครอบรูป (Cropper Modal) ทันที
+  const handlePhotoSelect = (file: File, target: 'add' | 'edit', teacherName?: string) => {
     if (!file.type.startsWith('image/')) {
       alert('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WebP)');
       return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = 400;
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        const base64 = canvas.toDataURL('image/jpeg', 0.85);
-        callback(base64);
-      };
-      img.src = e.target?.result as string;
+      const rawData = e.target?.result as string;
+      setCropperState({
+        isOpen: true,
+        imageSrc: rawData,
+        target,
+        teacherName: teacherName || (target === 'add' ? newName : editName),
+      });
     };
     reader.readAsDataURL(file);
+  };
+
+  // เปิดหน้าต่างปรับตำแหน่งรูปภาพ สำหรับรูปปัจจุบันหรือลิงก์ที่มีอยู่แล้ว
+  const handleOpenCropperForExisting = (target: 'add' | 'edit') => {
+    const src = target === 'add'
+      ? (formatGoogleDriveUrl(newImageUrl) || DEFAULT_AVATAR)
+      : (formatGoogleDriveUrl(editImageUrl) || editingTeacher?.image_url || DEFAULT_AVATAR);
+
+    setCropperState({
+      isOpen: true,
+      imageSrc: src,
+      target,
+      teacherName: target === 'add' ? (newName || 'อาจารย์ใหม่') : (editName || editingTeacher?.name || 'อาจารย์'),
+    });
+  };
+
+  // รับรูปภาพ base64 ที่ถูกครอบตัดและจัดตำแหน่งเรียบร้อยแล้ว
+  const handleCropComplete = (croppedBase64: string) => {
+    if (cropperState.target === 'add') {
+      setNewImageUrl(croppedBase64);
+    } else {
+      setEditImageUrl(croppedBase64);
+    }
   };
 
   // ค้นหาอาจารย์ตามชื่อ แผนก หรือรหัส
@@ -547,18 +567,29 @@ export const TeacherManagement: React.FC = () => {
                     src={formatGoogleDriveUrl(newImageUrl) || DEFAULT_AVATAR}
                     alt="ตัวอย่างรูปภาพ"
                     onError={(e) => { e.currentTarget.src = DEFAULT_AVATAR; }}
-                    className="w-14 h-14 rounded-xl object-cover border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shrink-0 shadow-sm"
+                    className="w-14 h-14 rounded-xl object-cover object-[center_20%] border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shrink-0 shadow-sm"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {newImageUrl ? 'รูปภาพที่เลือก' : 'รูปเริ่มต้น (Default)'}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {newImageUrl ? 'รูปภาพที่เลือก' : 'รูปเริ่มต้น (Default)'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCropperForExisting('add')}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold transition-all active:scale-95 shrink-0 shadow-xs"
+                        title="ปรับตำแหน่งภาพ เลื่อนกรอบ หรือซูมเข้า/ออก"
+                      >
+                        <Crop className="w-3 h-3" />
+                        <span>ปรับตำแหน่งรูป</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
                       {newImageUrl.startsWith('data:') 
-                        ? 'อัปโหลดจากอุปกรณ์โดยตรง (ขนาดกะทัดรัด)' 
+                        ? 'อัปโหลดและครอบตัดตำแหน่งที่ต้องการแล้ว' 
                         : newImageUrl.includes('google.com') 
                         ? 'แปลงจาก Google Drive อัตโนมัติ' 
-                        : 'สามารถอัปโหลดไฟล์ตรง หรือวางลิงก์ได้'}
+                        : 'สามารถอัปโหลดไฟล์ตรง แล้วเลื่อนตำแหน่งรูปได้'}
                     </p>
                     {newImageUrl && (
                       <button
@@ -581,7 +612,8 @@ export const TeacherManagement: React.FC = () => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handlePhotoUpload(file, (url) => setNewImageUrl(url));
+                      if (file) handlePhotoSelect(file, 'add', newName);
+                      e.target.value = '';
                     }}
                   />
                   <button
@@ -590,7 +622,7 @@ export const TeacherManagement: React.FC = () => {
                     className="w-full py-2 px-3 rounded-xl border border-dashed border-emerald-500/60 hover:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>เลือกไฟล์รูปภาพจากคอมพิวเตอร์ / มือถือ (แนะนำ)</span>
+                    <span>เลือกไฟล์รูปภาพ & เลื่อนตำแหน่ง (แนะนำ)</span>
                   </button>
                 </div>
 
@@ -710,18 +742,29 @@ export const TeacherManagement: React.FC = () => {
                     src={formatGoogleDriveUrl(editImageUrl) || DEFAULT_AVATAR}
                     alt="ตัวอย่างรูปภาพ"
                     onError={(e) => { e.currentTarget.src = DEFAULT_AVATAR; }}
-                    className="w-14 h-14 rounded-xl object-cover border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shrink-0 shadow-sm"
+                    className="w-14 h-14 rounded-xl object-cover object-[center_20%] border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shrink-0 shadow-sm"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {editImageUrl ? 'รูปภาพปัจจุบัน' : 'รูปเริ่มต้น (Default)'}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {editImageUrl ? 'รูปภาพปัจจุบัน' : 'รูปเริ่มต้น (Default)'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCropperForExisting('edit')}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-blue-800 dark:text-blue-300 text-[11px] font-bold transition-all active:scale-95 shrink-0 shadow-xs"
+                        title="ปรับตำแหน่งภาพ เลื่อนกรอบ หรือซูมเข้า/ออก"
+                      >
+                        <Crop className="w-3 h-3" />
+                        <span>ปรับตำแหน่งรูป</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
                       {editImageUrl.startsWith('data:') 
-                        ? 'อัปโหลดจากอุปกรณ์โดยตรง' 
+                        ? 'อัปโหลดและครอบตัดตำแหน่งที่ต้องการแล้ว' 
                         : editImageUrl.includes('google.com') 
                         ? 'แปลงจาก Google Drive อัตโนมัติ' 
-                        : 'สามารถอัปโหลดไฟล์ตรง หรือวางลิงก์ได้'}
+                        : 'สามารถอัปโหลดไฟล์ตรง แล้วเลื่อนตำแหน่งรูปได้'}
                     </p>
                     {editImageUrl && (
                       <button
@@ -744,7 +787,8 @@ export const TeacherManagement: React.FC = () => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handlePhotoUpload(file, (url) => setEditImageUrl(url));
+                      if (file) handlePhotoSelect(file, 'edit', editName || editingTeacher.name);
+                      e.target.value = '';
                     }}
                   />
                   <button
@@ -753,7 +797,7 @@ export const TeacherManagement: React.FC = () => {
                     className="w-full py-2 px-3 rounded-xl border border-dashed border-blue-500/60 hover:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>เลือกไฟล์รูปภาพจากคอมพิวเตอร์ / มือถือ (แนะนำ)</span>
+                    <span>เลือกไฟล์รูปภาพ & เลื่อนตำแหน่ง (แนะนำ)</span>
                   </button>
                 </div>
 
@@ -853,6 +897,15 @@ export const TeacherManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 6. Modal เลื่อนตำแหน่งและครอบรูปภาพ (Pan & Zoom Cropper) */}
+      <ImageCropperModal
+        isOpen={cropperState.isOpen}
+        imageSrc={cropperState.imageSrc}
+        teacherName={cropperState.teacherName}
+        onClose={() => setCropperState((prev) => ({ ...prev, isOpen: false }))}
+        onCropComplete={handleCropComplete}
+      />
 
     </main>
   );

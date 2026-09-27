@@ -445,7 +445,7 @@ export const Evaluator: React.FC = () => {
                 onError={(e) => {
                   e.currentTarget.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80';
                 }}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-[center_20%]"
               />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
@@ -524,7 +524,7 @@ export const Evaluator: React.FC = () => {
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80';
                   }}
-                  className="w-24 h-24 sm:w-28 sm:h-28 object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="w-24 h-24 sm:w-28 sm:h-28 object-cover object-[center_20%] transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="absolute -bottom-1.5 -right-1.5 bg-emerald-600 text-white p-1.5 rounded-full shadow-lg group-hover:scale-125 transition-transform">
@@ -602,7 +602,7 @@ export const Evaluator: React.FC = () => {
                     onError={(e) => {
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80';
                     }}
-                    className="w-9 h-9 rounded-lg object-cover shrink-0"
+                    className="w-9 h-9 rounded-lg object-cover object-[center_20%] shrink-0"
                   />
                   <div className="overflow-hidden">
                     <p className="text-xs font-bold truncate">{t.name}</p>
