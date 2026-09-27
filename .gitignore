@@ -49,3 +49,9 @@ Thumbs.db
 *.pem
 *.key
 *.cert
+
+# ไฟล์เอกสารคู่มือส่วนตัว (ไว้อ่านเองในเครื่อง)
+DEPLOYMENT_GUIDE.html
+GIT_MASTER_GUIDE.html
+SECURITY_AND_GIT_GUIDE.html
+PROJECT_STATUS.md
