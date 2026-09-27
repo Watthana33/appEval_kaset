@@ -76,27 +76,9 @@ export type DimensionKey = 'ด้านผู้สอน' | 'ด้านก�
 export const getQuestionDimension = (category?: string): DimensionKey => {
   if (!category) return 'ด้านผู้สอน';
   const cat = category.trim();
+
+  // 1. ตรวจสอบความพึงพอใจก่อน (เพราะชื่อเต็มมักมีคำว่า 'ผู้สอน' หรือ 'การสอน' พ่วงอยู่ด้วย)
   if (
-    cat === 'ด้านผู้สอน' ||
-    cat.includes('ผู้สอน') ||
-    cat.includes('การสอน') ||
-    cat.includes('ปฏิสัมพันธ์') ||
-    cat.includes('เอาใจใส่') ||
-    cat.includes('ถ่ายทอด')
-  ) {
-    return 'ด้านผู้สอน';
-  }
-  if (
-    cat === 'ด้านกิจกรรม' ||
-    cat.includes('กิจกรรม') ||
-    cat.includes('สื่อ') ||
-    cat.includes('เทคนิค') ||
-    cat.includes('ปฏิบัติ')
-  ) {
-    return 'ด้านกิจกรรม';
-  }
-  if (
-    cat === 'ด้านความพึงพอใจ' ||
     cat.includes('ความพึงพอใจ') ||
     cat.includes('ประโยชน์') ||
     cat.includes('นำไปใช้') ||
@@ -104,6 +86,20 @@ export const getQuestionDimension = (category?: string): DimensionKey => {
   ) {
     return 'ด้านความพึงพอใจ';
   }
+
+  // 2. ตรวจสอบด้านการจัดกิจกรรมการเรียนการสอนและการประเมินผล
+  if (
+    cat.includes('กิจกรรม') ||
+    cat.includes('การจัดกิจกรรม') ||
+    cat.includes('ประเมินผล') ||
+    cat.includes('สื่อ') ||
+    cat.includes('เทคนิค') ||
+    cat.includes('ปฏิบัติ')
+  ) {
+    return 'ด้านกิจกรรม';
+  }
+
+  // 3. ด้านผู้สอน
   return 'ด้านผู้สอน';
 };
 
@@ -599,10 +595,28 @@ export const getSurveyQuestions = async (): Promise<SurveyQuestion[]> => {
       if (data) {
         const local = getLocalData<SurveyQuestion[]>('survey_config', DEFAULT_QUESTIONS);
         const localTypeMap = new Map(local.map((q) => [q.id, q.question_type]));
-        const merged: SurveyQuestion[] = data.map((q: any) => ({
-          ...q,
-          question_type: q.question_type || localTypeMap.get(q.id) || 'rating',
-        }));
+        const merged: SurveyQuestion[] = data.map((q: any) => {
+          let resolvedType = q.question_type || localTypeMap.get(q.id);
+          // Smart fallback: หากฐานข้อมูลยังไม่ได้เพิ่มคอลัมน์ question_type ให้ตรวจจับจากเนื้อหาคำถามอัตโนมัติ
+          if (!resolvedType) {
+            const txt = (q.question_text || '').toLowerCase();
+            if (
+              txt.includes('อย่างไรบ้าง') ||
+              txt.includes('ข้อเสนอแนะ') ||
+              txt.includes('เขียนตอบ') ||
+              txt.includes('ปรับปรุงการสอน') ||
+              txt.includes('ความประทับใจ')
+            ) {
+              resolvedType = 'text';
+            } else {
+              resolvedType = 'rating';
+            }
+          }
+          return {
+            ...q,
+            question_type: resolvedType,
+          };
+        });
         setLocalData('survey_config', merged);
         return merged;
       }

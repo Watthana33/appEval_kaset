@@ -47,10 +47,11 @@ import {
   getSurveyQuestions,
   getAcademicPeriods,
   getDepartments,
+  getSurveyCategories,
   getQuestionDimension,
   DimensionKey
 } from '../services/dataService';
-import { SurveyResponse, Teacher, SurveyQuestion, AcademicPeriod, Department } from '../types/index';
+import { SurveyResponse, Teacher, SurveyQuestion, AcademicPeriod, Department, SurveyCategory } from '../types/index';
 
 export const Dashboard: React.FC = () => {
   const { isDark } = useTheme();
@@ -59,6 +60,7 @@ export const Dashboard: React.FC = () => {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [categories, setCategories] = useState<SurveyCategory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
@@ -85,18 +87,20 @@ export const Dashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [resData, teachData, quesData, periodData, deptsData] = await Promise.all([
+      const [resData, teachData, quesData, periodData, deptsData, catsData] = await Promise.all([
         getEvaluationResponses(),
         getTeachers(),
         getSurveyQuestions(),
         getAcademicPeriods(),
         getDepartments(),
+        getSurveyCategories(),
       ]);
       setResponses(resData);
       setTeachers(teachData);
       setQuestions(quesData);
       setPeriods(periodData);
       setDepartments(deptsData);
+      setCategories(catsData);
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -258,6 +262,100 @@ export const Dashboard: React.FC = () => {
     };
   }, [filteredResponses, questionDimensionMap, targetEnrollment]);
 
+  // ดึงรายการด้านการประเมินแบบ Dynamic (เรียงตาม order_no ในฐานข้อมูล หรือลำดับในคำถาม)
+  const dynamicCategories = useMemo(() => {
+    // รวบรวมหมวดหมู่ทั้งหมดที่ถูกใช้ในข้อคำถาม
+    const usedCategoryNames = Array.from(new Set(questions.map((q) => q.category).filter(Boolean)));
+
+    // สีประจำแต่ละด้าน (โทนสีสวยงาม คอนทราสต์ชัด)
+    const colorPalette = [
+      { color: '#3b82f6', bg: 'bg-blue-50/70 dark:bg-blue-950/30', border: 'border-blue-300 dark:border-blue-800/80', badge: 'bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300', dot: 'bg-blue-500' },
+      { color: '#f97316', bg: 'bg-orange-50/70 dark:bg-orange-950/30', border: 'border-orange-300 dark:border-orange-800/80', badge: 'bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-300', dot: 'bg-orange-500' },
+      { color: '#a855f7', bg: 'bg-purple-50/70 dark:bg-purple-950/30', border: 'border-purple-300 dark:border-purple-800/80', badge: 'bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300', dot: 'bg-purple-500' },
+      { color: '#10b981', bg: 'bg-emerald-50/70 dark:bg-emerald-950/30', border: 'border-emerald-300 dark:border-emerald-800/80', badge: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300', dot: 'bg-emerald-500' },
+      { color: '#ec4899', bg: 'bg-pink-50/70 dark:bg-pink-950/30', border: 'border-pink-300 dark:border-pink-800/80', badge: 'bg-pink-100 dark:bg-pink-900/60 text-pink-600 dark:text-pink-300', dot: 'bg-pink-500' },
+      { color: '#06b6d4', bg: 'bg-cyan-50/70 dark:bg-cyan-950/30', border: 'border-cyan-300 dark:border-cyan-800/80', badge: 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-600 dark:text-cyan-300', dot: 'bg-cyan-500' },
+    ];
+
+    const icons = [GraduationCap, BookOpen, Star, Award, Heart, CheckCircle2];
+
+    const orderedNames: string[] = [];
+    categories.forEach((c) => {
+      if (usedCategoryNames.includes(c.name) && !orderedNames.includes(c.name)) {
+        orderedNames.push(c.name);
+      }
+    });
+    usedCategoryNames.forEach((name) => {
+      if (!orderedNames.includes(name)) {
+        orderedNames.push(name);
+      }
+    });
+
+    return orderedNames.map((fullName, idx) => {
+      const palette = colorPalette[idx % colorPalette.length];
+      const IconComponent = icons[idx % icons.length];
+
+      let shortName = fullName;
+      if (fullName.includes('กิจกรรม') && (fullName.includes('ประเมิน') || fullName.includes('การสอน'))) {
+        shortName = 'ด้านการจัดกิจกรรมและประเมินผล';
+      } else if (fullName.includes('พึงพอใจ')) {
+        shortName = 'ด้านความพึงพอใจในภาพรวม';
+      } else if (fullName.length > 28) {
+        shortName = fullName.substring(0, 26) + '...';
+      }
+
+      return {
+        fullName,
+        shortName,
+        index: idx,
+        color: palette.color,
+        bg: palette.bg,
+        border: palette.border,
+        badge: palette.badge,
+        dot: palette.dot,
+        IconComponent,
+      };
+    });
+  }, [categories, questions]);
+
+  // คำนวณคะแนนเฉลี่ยรายด้านแบบ Dynamic จากฐานข้อมูล
+  const categoryStats = useMemo(() => {
+    const catRatingQIds = new Map<string, string[]>();
+    dynamicCategories.forEach((cat) => {
+      const qIds = questions
+        .filter((q) => q.category === cat.fullName && q.question_type !== 'text')
+        .map((q) => q.id);
+      catRatingQIds.set(cat.fullName, qIds);
+    });
+
+    const result: Record<string, { avg: number; count: number; sum: number }> = {};
+    dynamicCategories.forEach((cat) => {
+      result[cat.fullName] = { avg: 0, count: 0, sum: 0 };
+    });
+
+    filteredResponses.forEach((res) => {
+      if (res.scores) {
+        dynamicCategories.forEach((cat) => {
+          const qIds = catRatingQIds.get(cat.fullName) || [];
+          qIds.forEach((qid) => {
+            const score = res.scores[qid];
+            if (typeof score === 'number') {
+              result[cat.fullName].sum += score;
+              result[cat.fullName].count += 1;
+            }
+          });
+        });
+      }
+    });
+
+    dynamicCategories.forEach((cat) => {
+      const item = result[cat.fullName];
+      item.avg = item.count > 0 ? parseFloat((item.sum / item.count).toFixed(2)) : 0;
+    });
+
+    return result;
+  }, [dynamicCategories, questions, filteredResponses]);
+
   // =========================================================================
   // 1. กราฟที่ 1: แผนภูมิโดนัท สัดส่วนผู้ประเมินตามสาขาวิชา/แผนกวิชา (Looker Studio Donut)
   // =========================================================================
@@ -328,9 +426,9 @@ export const Dashboard: React.FC = () => {
   }, [filteredResponses]);
 
   // =========================================================================
-  // 3. กราฟที่ 3: กราฟแท่งเปรียบเทียบครู 3 มิติหลัก (Teacher 3-Dimension Grouped Bar Chart)
+  // 3. กราฟที่ 3: กราฟแท่งเปรียบเทียบครูรายด้าน (Teacher Dynamic Grouped Bar Chart)
   // แกน X: รายชื่อครูผู้สอน
-  // 3 Bars: 🟦 ด้านผู้สอน, 🟧 ด้านกิจกรรม, 🟪 ด้านความพึงพอใจ
+  // Bars: แสดงคะแนนเฉลี่ยตามด้านการประเมินแบบ Dynamic จากฐานข้อมูล
   // =========================================================================
   const teacher3DimChartData = useMemo(() => {
     if (filteredResponses.length === 0) return [];
@@ -340,16 +438,21 @@ export const Dashboard: React.FC = () => {
       {
         teacherId: string;
         teacherName: string;
+        shortName: string;
         department: string;
-        sumTeacher: number;
-        cntTeacher: number;
-        sumActivity: number;
-        cntActivity: number;
-        sumSatisfaction: number;
-        cntSatisfaction: number;
         totalEvals: number;
+        catSums: Record<string, number>;
+        catCounts: Record<string, number>;
       }
     > = {};
+
+    const catRatingQIds = new Map<string, string[]>();
+    dynamicCategories.forEach((cat) => {
+      const qIds = questions
+        .filter((q) => q.category === cat.fullName && q.question_type !== 'text')
+        .map((q) => q.id);
+      catRatingQIds.set(cat.fullName, qIds);
+    });
 
     filteredResponses.forEach((res) => {
       const tid = res.teacher_id;
@@ -357,54 +460,56 @@ export const Dashboard: React.FC = () => {
         teacherMap[tid] = {
           teacherId: tid,
           teacherName: res.teacher_name || 'อาจารย์',
+          shortName: (res.teacher_name || 'อาจารย์').replace(/^(นาย|นางสาว|นาง|ว่าที่ ร\.ต\.|ว่าที่ร้อยตรี|อ\.)\s*/, ''),
           department: res.department || '',
-          sumTeacher: 0,
-          cntTeacher: 0,
-          sumActivity: 0,
-          cntActivity: 0,
-          sumSatisfaction: 0,
-          cntSatisfaction: 0,
           totalEvals: 0,
+          catSums: {},
+          catCounts: {},
         };
+        dynamicCategories.forEach((cat) => {
+          teacherMap[tid].catSums[cat.fullName] = 0;
+          teacherMap[tid].catCounts[cat.fullName] = 0;
+        });
       }
       teacherMap[tid].totalEvals += 1;
 
       if (res.scores) {
-        Object.entries(res.scores).forEach(([qid, score]) => {
-          const dim = questionDimensionMap.get(qid) || 'ด้านผู้สอน';
-          if (dim === 'ด้านผู้สอน') {
-            teacherMap[tid].sumTeacher += score;
-            teacherMap[tid].cntTeacher += 1;
-          } else if (dim === 'ด้านกิจกรรม') {
-            teacherMap[tid].sumActivity += score;
-            teacherMap[tid].cntActivity += 1;
-          } else if (dim === 'ด้านความพึงพอใจ') {
-            teacherMap[tid].sumSatisfaction += score;
-            teacherMap[tid].cntSatisfaction += 1;
-          }
+        dynamicCategories.forEach((cat) => {
+          const qIds = catRatingQIds.get(cat.fullName) || [];
+          qIds.forEach((qid) => {
+            const score = res.scores[qid];
+            if (typeof score === 'number') {
+              teacherMap[tid].catSums[cat.fullName] += score;
+              teacherMap[tid].catCounts[cat.fullName] += 1;
+            }
+          });
         });
       }
     });
 
     return Object.values(teacherMap)
       .map((t) => {
-        const scoreTeacher = t.cntTeacher > 0 ? parseFloat((t.sumTeacher / t.cntTeacher).toFixed(2)) : 0;
-        const scoreActivity = t.cntActivity > 0 ? parseFloat((t.sumActivity / t.cntActivity).toFixed(2)) : 0;
-        const scoreSatisfaction = t.cntSatisfaction > 0 ? parseFloat((t.sumSatisfaction / t.cntSatisfaction).toFixed(2)) : 0;
-
-        return {
+        const row: Record<string, any> = {
           teacherId: t.teacherId,
           teacherName: t.teacherName,
-          shortName: t.teacherName.replace(/^(นาย|นางสาว|นาง|ว่าที่ ร\.ต\.|ว่าที่ร้อยตรี|อ\.)\s*/, ''),
+          shortName: t.shortName,
           department: t.department,
-          'คะแนนเฉลี่ยด้านผู้สอน': scoreTeacher,
-          'คะแนนเฉลี่ยด้านกิจกรรม': scoreActivity,
-          'คะแนนเฉลี่ยความพึงพอใจ': scoreSatisfaction,
-          evalCount: t.totalEvals,
+          totalEvals: t.totalEvals,
         };
+
+        dynamicCategories.forEach((cat) => {
+          const cnt = t.catCounts[cat.fullName] || 0;
+          const sum = t.catSums[cat.fullName] || 0;
+          row[cat.shortName] = cnt > 0 ? parseFloat((sum / cnt).toFixed(2)) : 0;
+        });
+
+        return row;
       })
-      .sort((a, b) => b['คะแนนเฉลี่ยด้านผู้สอน'] - a['คะแนนเฉลี่ยด้านผู้สอน']);
-  }, [filteredResponses, questionDimensionMap]);
+      .sort((a, b) => {
+        const firstKey = dynamicCategories[0]?.shortName || '';
+        return (b[firstKey] || 0) - (a[firstKey] || 0);
+      });
+  }, [filteredResponses, dynamicCategories, questions]);
 
   // =========================================================================
   // 4. ตารางข้อมูลและการแบ่งหน้า (Pagination)
@@ -459,18 +564,24 @@ export const Dashboard: React.FC = () => {
     }
 
     const exportData = filteredResponses.map((item, index) => {
-      let tScore = 0, tCnt = 0;
-      let aScore = 0, aCnt = 0;
-      let sScore = 0, sCnt = 0;
-
-      if (item.scores) {
-        Object.entries(item.scores).forEach(([qid, val]) => {
-          const dim = questionDimensionMap.get(qid) || 'ด้านผู้สอน';
-          if (dim === 'ด้านผู้สอน') { tScore += val; tCnt++; }
-          else if (dim === 'ด้านกิจกรรม') { aScore += val; aCnt++; }
-          else if (dim === 'ด้านความพึงพอใจ') { sScore += val; sCnt++; }
-        });
-      }
+      // คำนวณคะแนนเฉลี่ยรายด้านแบบ Dynamic
+      const catScores: Record<string, any> = {};
+      dynamicCategories.forEach((cat) => {
+        const qIds = questions
+          .filter((q) => q.category === cat.fullName && q.question_type !== 'text')
+          .map((q) => q.id);
+        let cScore = 0, cCnt = 0;
+        if (item.scores) {
+          qIds.forEach((qid) => {
+            const val = item.scores[qid];
+            if (typeof val === 'number') {
+              cScore += val;
+              cCnt++;
+            }
+          });
+        }
+        catScores[`คะแนนเฉลี่ย: ${cat.shortName}`] = cCnt > 0 ? parseFloat((cScore / cCnt).toFixed(2)) : '-';
+      });
 
       const row: Record<string, any> = {
         ลำดับ: index + 1,
@@ -483,9 +594,7 @@ export const Dashboard: React.FC = () => {
         ปีการศึกษา: item.academic_year,
         ภาคเรียน: item.term,
         คะแนนเฉลี่ยรวม: item.average_score,
-        คะแนนเฉลี่ยด้านผู้สอน: tCnt > 0 ? parseFloat((tScore / tCnt).toFixed(2)) : '-',
-        คะแนนเฉลี่ยด้านกิจกรรม: aCnt > 0 ? parseFloat((aScore / aCnt).toFixed(2)) : '-',
-        คะแนนเฉลี่ยความพึงพอใจ: sCnt > 0 ? parseFloat((sScore / sCnt).toFixed(2)) : '-',
+        ...catScores,
         ระดับความพึงพอใจ: (item.average_score || 0) >= 4.5 ? 'ดีเยี่ยม' : (item.average_score || 0) >= 3.5 ? 'ดี' : 'ปานกลาง',
         '3.3 ข้อเสนอแนะเพื่อการปรับปรุง/พัฒนา': item.suggestion || '-',
         '3.4 ความประทับใจที่มีต่อครูผู้สอน': item.impression || '-',
@@ -494,7 +603,11 @@ export const Dashboard: React.FC = () => {
       };
 
       questions.forEach((q, qIdx) => {
-        row[`ข้อที่ ${qIdx + 1} (${q.question_text.substring(0, 30)}...)`] = item.scores?.[q.id] ?? '-';
+        let val: any = item.scores?.[q.id];
+        if (val === undefined && q.question_type === 'text') {
+          val = item.text_answers?.[q.id] || (q.order_no === 15 || q.question_text.includes('3.3') ? item.suggestion : item.impression) || item.suggestion || item.feedback || '-';
+        }
+        row[`ข้อที่ ${qIdx + 1} (${q.question_text.substring(0, 30)}...)`] = val ?? '-';
       });
 
       return row;
@@ -808,80 +921,39 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: 🟨 คะแนนเฉลี่ยด้านผู้สอน */}
-        <div className="bg-amber-50/70 dark:bg-amber-950/30 p-5 rounded-2xl border-2 border-amber-300 dark:border-amber-800/80 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 mb-2">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wide">
-              คะแนนเฉลี่ยด้านผู้สอน
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300 flex items-center justify-center font-bold">
-              <GraduationCap className="w-4 h-4" />
-            </div>
-          </div>
+        {/* Dynamic Category Cards (แสดงคะแนนเฉลี่ยแยกตามแต่ละด้านที่ตั้งค่าไว้จริงในระบบ) */}
+        {dynamicCategories.map((cat) => {
+          const catStat = categoryStats[cat.fullName] || { avg: 0, count: 0 };
+          const IconComp = cat.IconComponent;
+          return (
+            <div
+              key={cat.fullName}
+              className={`${cat.bg} p-5 rounded-2xl border-2 ${cat.border} shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="flex items-center justify-between text-slate-800 dark:text-slate-200 mb-2">
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-wide truncate max-w-[80%]" title={cat.fullName}>
+                  คะแนนเฉลี่ย{cat.shortName}
+                </span>
+                <div className={`w-8 h-8 rounded-lg ${cat.badge} flex items-center justify-center font-bold shrink-0`}>
+                  <IconComp className="w-4 h-4" />
+                </div>
+              </div>
 
-          <div>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-4xl sm:text-5xl font-black text-amber-950 dark:text-white tracking-tight leading-none font-mono">
-                {stats.dimTeacherAvg.toFixed(2)}
-              </span>
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">/ 5.00</span>
+              <div>
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-none font-mono">
+                    {catStat.avg.toFixed(2)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">/ 5.00</span>
+                </div>
+                <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 pt-1 border-t border-slate-200/80 dark:border-slate-800">
+                  <span className={`w-2 h-2 rounded-full ${cat.dot} inline-block shrink-0`} />
+                  <span className="truncate" title={cat.fullName}>{cat.fullName}</span>
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 pt-1 border-t border-amber-200 dark:border-amber-900/60">
-              <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-              <span>การอธิบาย ความอดทน และการดูแลผู้เรียน</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: 🟩 คะแนนเฉลี่ยด้านกิจกรรม */}
-        <div className="bg-emerald-50/70 dark:bg-emerald-950/30 p-5 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800/80 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 mb-2">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wide">
-              คะแนนเฉลี่ยด้านกิจกรรม
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-300 flex items-center justify-center font-bold">
-              <BookOpen className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-4xl sm:text-5xl font-black text-emerald-950 dark:text-white tracking-tight leading-none font-mono">
-                {stats.dimActivityAvg.toFixed(2)}
-              </span>
-              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">/ 5.00</span>
-            </div>
-            <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 pt-1 border-t border-emerald-200 dark:border-emerald-900/60">
-              <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
-              <span>สื่อการสอน การฝึกปฏิบัติจริง และกิจกรรม</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: 🟪 คะแนนเฉลี่ยความพึงพอใจ */}
-        <div className="bg-purple-50/70 dark:bg-purple-950/30 p-5 rounded-2xl border-2 border-purple-300 dark:border-purple-800/80 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-purple-800 dark:text-purple-300 mb-2">
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wide">
-              คะแนนเฉลี่ยความพึงพอใจ
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold">
-              <Star className="w-4 h-4 fill-purple-500" />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-4xl sm:text-5xl font-black text-purple-950 dark:text-white tracking-tight leading-none font-mono">
-                {stats.dimSatisfactionAvg.toFixed(2)}
-              </span>
-              <span className="text-xs font-bold text-purple-700 dark:text-purple-400">/ 5.00</span>
-            </div>
-            <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 pt-1 border-t border-purple-200 dark:border-purple-900/60">
-              <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
-              <span>ประโยชน์และการนำไปใช้ในชีวิต/วิชาชีพ</span>
-            </div>
-          </div>
-        </div>
+          );
+        })}
 
       </div>
 
@@ -1033,14 +1105,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Graph 3: กราฟแท่งเปรียบเทียบครู 3 มิติหลัก (Teacher 3-Grouped Bar Chart) */}
+        {/* Graph 3: กราฟแท่งเปรียบเทียบครูรายด้าน (Teacher Dynamic Grouped Bar Chart) */}
         <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                  เปรียบเทียบครูผู้สอน (3 มิติหลัก)
+                  เปรียบเทียบครูผู้สอน ({dynamicCategories.length} ด้านหลัก)
                 </h2>
               </div>
               <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
@@ -1048,20 +1120,14 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
 
-            {/* Custom Legend เลียนแบบ Looker Studio: 🟦 ด้านผู้สอน, 🟧 ด้านกิจกรรม, 🟪 ด้านความพึงพอใจ */}
+            {/* Custom Legend แบบ Dynamic ตามด้านที่ตั้งค่าไว้จริง */}
             <div className="flex flex-wrap items-center justify-center gap-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-[10px] font-semibold">
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block shadow-sm"></span>
-                <span className="text-slate-700 dark:text-slate-200">ด้านผู้สอน</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block shadow-sm"></span>
-                <span className="text-slate-700 dark:text-slate-200">ด้านกิจกรรม</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 inline-block shadow-sm"></span>
-                <span className="text-slate-700 dark:text-slate-200">ความพึงพอใจ</span>
-              </div>
+              {dynamicCategories.map((cat) => (
+                <div key={cat.fullName} className="flex items-center gap-1" title={cat.fullName}>
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block shadow-sm" style={{ backgroundColor: cat.color }}></span>
+                  <span className="text-slate-700 dark:text-slate-200">{cat.shortName}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1094,9 +1160,15 @@ export const Dashboard: React.FC = () => {
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="คะแนนเฉลี่ยด้านผู้สอน" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={16} />
-                    <Bar dataKey="คะแนนเฉลี่ยด้านกิจกรรม" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={16} />
-                    <Bar dataKey="คะแนนเฉลี่ยความพึงพอใจ" fill="#a855f7" radius={[4, 4, 0, 0]} maxBarSize={16} />
+                    {dynamicCategories.map((cat) => (
+                      <Bar
+                        key={cat.fullName}
+                        dataKey={cat.shortName}
+                        fill={cat.color}
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={16}
+                      />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1106,7 +1178,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 text-center">
-            วิเคราะห์ 3 มิติรายบุคคลตามเกณฑ์ สอศ.
+            วิเคราะห์เปรียบเทียบรายบุคคลตามเกณฑ์ สอศ.
           </div>
         </div>
 
