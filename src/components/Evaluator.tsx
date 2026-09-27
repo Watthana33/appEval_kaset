@@ -105,6 +105,11 @@ export const Evaluator: React.FC = () => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 6000);
+
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -115,6 +120,8 @@ export const Evaluator: React.FC = () => {
           getEducationLevels(),
           getMajors(),
         ]);
+
+        if (!isMounted) return;
 
         setTeachers(teachersData);
         setQuestions(questionsData);
@@ -142,11 +149,17 @@ export const Evaluator: React.FC = () => {
       } catch (err) {
         console.error('Error loading evaluation data:', err);
       } finally {
-        setLoading(false);
+        clearTimeout(safetyTimer);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, [teacherIdParam]);
 
   const handleSelectTeacher = (teacher: Teacher) => {
