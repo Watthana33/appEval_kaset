@@ -43,7 +43,7 @@ export const TeacherManagement: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>('');
   const [newSubject, setNewSubject] = useState<string>('');
-  const [newDepartment, setNewDepartment] = useState<string>('แผนกวิชาพืชศาสตร์');
+  const [newDepartment, setNewDepartment] = useState<string>('');
   const [newImageUrl, setNewImageUrl] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -51,7 +51,7 @@ export const TeacherManagement: React.FC = () => {
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [editName, setEditName] = useState<string>('');
   const [editSubject, setEditSubject] = useState<string>('');
-  const [editDepartment, setEditDepartment] = useState<string>('แผนกวิชาพืชศาสตร์');
+  const [editDepartment, setEditDepartment] = useState<string>('');
   const [editImageUrl, setEditImageUrl] = useState<string>('');
 
   // File Input Refs
@@ -182,7 +182,7 @@ export const TeacherManagement: React.FC = () => {
       const added = await addTeacher({
         name: newName.trim(),
         subject: newSubject.trim() || '',
-        department: newDepartment.trim() || 'แผนกวิชาพืชศาสตร์',
+        department: newDepartment.trim() || '',
         image_url: finalImg,
       });
 
@@ -190,7 +190,7 @@ export const TeacherManagement: React.FC = () => {
       setIsAddModalOpen(false);
       setNewName('');
       setNewSubject('');
-      setNewDepartment('แผนกวิชาพืชศาสตร์');
+      setNewDepartment('');
       setNewImageUrl('');
     } catch (err) {
       console.error(err);
@@ -205,7 +205,7 @@ export const TeacherManagement: React.FC = () => {
     setEditingTeacher(teacher);
     setEditName(teacher.name);
     setEditSubject(teacher.subject || '');
-    setEditDepartment(teacher.department || 'แผนกวิชาพืชศาสตร์');
+    setEditDepartment(teacher.department || '');
     setEditImageUrl(teacher.image_url || '');
   };
 
@@ -225,7 +225,7 @@ export const TeacherManagement: React.FC = () => {
       const updated = await updateTeacher(editingTeacher.id, {
         name: editName.trim(),
         subject: editSubject.trim() || '',
-        department: editDepartment.trim() || 'แผนกวิชาพืชศาสตร์',
+        department: editDepartment.trim() || '',
         image_url: finalImg,
       });
 
@@ -405,9 +405,15 @@ export const TeacherManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
-                        {t.department || 'แผนกวิชาทั่วไป'}
-                      </span>
+                      {t.department ? (
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                          {t.department}
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 font-normal">
+                          - (ยังไม่ระบุแผนก)
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       {t.subject ? (
@@ -525,12 +531,20 @@ export const TeacherManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">แผนกวิชา *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    แผนกวิชา
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    (ไม่บังคับ / เว้นว่างได้)
+                  </span>
+                </div>
                 <select
                   value={newDepartment}
                   onChange={(e) => setNewDepartment(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-900 dark:text-white font-medium"
                 >
+                  <option value="">-- ไม่ระบุแผนกวิชา (เว้นว่างไว้ก่อนได้) --</option>
                   {departmentsList.map((dep) => (
                     <option key={dep} value={dep}>{dep}</option>
                   ))}
@@ -700,12 +714,20 @@ export const TeacherManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">แผนกวิชา *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    แผนกวิชา
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    (ไม่บังคับ / เว้นว่างได้)
+                  </span>
+                </div>
                 <select
                   value={editDepartment}
                   onChange={(e) => setEditDepartment(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900 dark:text-white font-medium"
                 >
+                  <option value="">-- ไม่ระบุแผนกวิชา (เว้นว่างไว้ก่อนได้) --</option>
                   {departmentsList.map((dep) => (
                     <option key={dep} value={dep}>{dep}</option>
                   ))}
@@ -860,7 +882,7 @@ export const TeacherManagement: React.FC = () => {
             {activeQrTeacher.subject && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-0.5">{activeQrTeacher.subject}</p>
             )}
-            <p className="text-[11px] text-slate-400 mb-3">{activeQrTeacher.department}</p>
+            <p className="text-[11px] text-slate-400 mb-3">{activeQrTeacher.department || 'ยังไม่ระบุแผนกวิชา'}</p>
 
             <div className="bg-slate-50 dark:bg-white p-3 rounded-xl inline-block border border-slate-200 mb-3">
               <img

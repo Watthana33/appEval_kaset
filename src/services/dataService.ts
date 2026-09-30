@@ -354,22 +354,27 @@ export const getTeacherById = async (id: string): Promise<Teacher | null> => {
 
 export const addTeacher = async (teacher: Omit<Teacher, 'id'> & { id?: string }): Promise<Teacher> => {
   const formattedImg = formatGoogleDriveUrl(teacher.image_url) || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80';
+  const cleanDept = teacher.department?.trim() || '';
   const newTeacher: Teacher = {
     ...teacher,
     id: teacher.id || `t_${Date.now()}`,
-    department: teacher.department || 'แผนกวิชาพืชศาสตร์',
+    department: cleanDept,
     image_url: formattedImg,
   };
 
   if (isSupabaseConfigured()) {
     try {
+      const payload = {
+        ...newTeacher,
+        department: cleanDept || null, // ส่ง null หากไม่ระบุแผนก เพื่อให้สอดคล้องกับ foreign key ใน Supabase
+      };
       const { data, error } = await supabase
         .from('teachers')
-        .insert([newTeacher])
+        .insert([payload])
         .select()
         .single();
       if (error) throw error;
-      if (data) return data;
+      if (data) return { ...data, department: data.department || '' };
     } catch (err) {
       console.warn('Supabase addTeacher fallback:', err);
     }
@@ -386,17 +391,24 @@ export const updateTeacher = async (id: string, updates: Partial<Teacher>): Prom
   if (processedUpdates.image_url) {
     processedUpdates.image_url = formatGoogleDriveUrl(processedUpdates.image_url);
   }
+  if (processedUpdates.department !== undefined) {
+    processedUpdates.department = processedUpdates.department?.trim() || '';
+  }
 
   if (isSupabaseConfigured()) {
     try {
+      const payload = {
+        ...processedUpdates,
+        department: processedUpdates.department ? processedUpdates.department : null,
+      };
       const { data, error } = await supabase
         .from('teachers')
-        .update(processedUpdates)
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
       if (error) throw error;
-      if (data) return data;
+      if (data) return { ...data, department: data.department || '' };
     } catch (err) {
       console.warn('Supabase updateTeacher fallback:', err);
     }
