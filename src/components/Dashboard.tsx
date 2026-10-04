@@ -1066,15 +1066,15 @@ export const Dashboard: React.FC = () => {
             {majorChartData.filter((m) => m.hasResponses).length > 0 ? (
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 {/* แผนภูมิโดนัท (ฝั่งซ้าย) */}
-                <div className="relative w-full sm:w-[46%] h-52 shrink-0">
+                <div className="relative w-full sm:w-[42%] h-52 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={majorChartData.filter((m) => m.hasResponses)}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={72}
+                        innerRadius={38}
+                        outerRadius={68}
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
@@ -1100,7 +1100,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* รายการ Legend แบบ HTML เรียงลำดับจากร้อยละมากไปน้อยตรงกับชิ้นพาย 100% */}
-                <div className="w-full sm:w-[54%] max-h-52 overflow-y-auto pr-1 space-y-1">
+                <div className="w-full sm:w-[58%] max-h-52 overflow-y-auto pr-1 space-y-1">
                   {majorChartData.map((item) => (
                     <div 
                       key={item.name} 
@@ -1122,14 +1122,9 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1 shrink-0 ml-1.5">
                         {item.hasResponses ? (
-                          <>
-                            <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                              {item.percentage}%
-                            </span>
-                            <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500">
-                              ({item.value} คน)
-                            </span>
-                          </>
+                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                            {item.percentage}%
+                          </span>
                         ) : (
                           <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                             รอประเมิน
