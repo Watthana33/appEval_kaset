@@ -49,9 +49,10 @@ import {
   getDepartments,
   getSurveyCategories,
   getQuestionDimension,
+  getMajors,
   DimensionKey
 } from '../services/dataService';
-import { SurveyResponse, Teacher, SurveyQuestion, AcademicPeriod, Department, SurveyCategory } from '../types/index';
+import { SurveyResponse, Teacher, SurveyQuestion, AcademicPeriod, Department, SurveyCategory, Major } from '../types/index';
 
 export const Dashboard: React.FC = () => {
   const { isDark } = useTheme();
@@ -61,6 +62,7 @@ export const Dashboard: React.FC = () => {
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [categories, setCategories] = useState<SurveyCategory[]>([]);
+  const [systemMajors, setSystemMajors] = useState<Major[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
@@ -87,13 +89,14 @@ export const Dashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [resData, teachData, quesData, periodData, deptsData, catsData] = await Promise.all([
+      const [resData, teachData, quesData, periodData, deptsData, catsData, majorsData] = await Promise.all([
         getEvaluationResponses(),
         getTeachers(),
         getSurveyQuestions(),
         getAcademicPeriods(),
         getDepartments(),
         getSurveyCategories(),
+        getMajors(),
       ]);
       setResponses(resData);
       setTeachers(teachData);
@@ -101,6 +104,7 @@ export const Dashboard: React.FC = () => {
       setPeriods(periodData);
       setDepartments(deptsData);
       setCategories(catsData);
+      setSystemMajors(majorsData);
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -360,42 +364,69 @@ export const Dashboard: React.FC = () => {
   // 1. กราฟที่ 1: แผนภูมิโดนัท สัดส่วนผู้ประเมินตามสาขาวิชา/แผนกวิชา (Looker Studio Donut)
   // =========================================================================
   const majorDonutColors = [
-    '#3b82f6', // น้ำเงิน
-    '#f97316', // ส้ม
-    '#a855f7', // ม่วง
-    '#10b981', // เขียวมรกต
-    '#06b6d4', // ฟ้าคราม
-    '#eab308', // ทอง
-    '#ec4899', // ชมพู
-    '#8b5cf6', // ม่วงคราม
-    '#14b8a6', // เขียวอมฟ้า
-    '#64748b', // เทา
+    '#2563eb', // น้ำเงินสด (Blue)
+    '#ea580c', // ส้ม (Orange)
+    '#9333ea', // ม่วงเข้ม (Purple)
+    '#059669', // เขียวมรกต (Emerald)
+    '#0891b2', // ฟ้าเข้ม (Cyan)
+    '#d97706', // อำพัน/ทอง (Amber)
+    '#db2777', // ชมพูบานเย็น (Pink)
+    '#4f46e5', // น้ำเงินคราม (Indigo)
+    '#0d9488', // เขียวอมฟ้า (Teal)
+    '#e11d48', // กุหลาบแดง (Rose)
+    '#65a30d', // เขียวตอง (Lime)
+    '#0284c7', // ฟ้าคราม (Sky)
+    '#c026d3', // ม่วงฟิวเชีย (Fuchsia)
+    '#475569', // เทาเข้ม (Slate)
+    '#b45309', // น้ำตาลส้ม (Bronze)
   ];
 
   const majorChartData = useMemo(() => {
-    if (filteredResponses.length === 0) return [];
-
     const groupMap: Record<string, number> = {};
+
+    // 1. นำรายชื่อสาขาวิชาทั้งหมดที่ตั้งค่าไว้ในระบบมาตั้งเป็นฐาน เพื่อให้ดึงข้อมูลสาขาครบถ้วน
+    systemMajors.forEach((m) => {
+      const cleanName = m.name.replace('สาขาวิชา', '').replace('แผนกวิชา', '').trim();
+      if (cleanName) {
+        groupMap[cleanName] = 0;
+      }
+    });
+
+    // 2. นับจำนวนผู้ตอบแบบประเมินจริงในแต่ละสาขา
     filteredResponses.forEach((r) => {
       let key = r.major || r.department || 'ไม่ระบุสาขา';
       key = key.replace('สาขาวิชา', '').replace('แผนกวิชา', '').trim();
       groupMap[key] = (groupMap[key] || 0) + 1;
     });
 
-    const total = filteredResponses.length;
-    const sorted = Object.entries(groupMap)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percentage: Math.round((value / total) * 1000) / 10,
-      }))
-      .sort((a, b) => b.value - a.value);
-
-    return sorted.map((item, index) => ({
-      ...item,
-      color: majorDonutColors[index % majorDonutColors.length],
+    const total = filteredResponses.length || 1;
+    const list = Object.entries(groupMap).map(([name, value]) => ({
+      name,
+      value,
+      percentage: filteredResponses.length > 0 ? Math.round((value / total) * 1000) / 10 : 0,
     }));
-  }, [filteredResponses]);
+
+    // สาขาที่มีผลประเมินจริง เรียงลำดับจากมากไปหาน้อยตามสัดส่วน
+    const evaluated = list
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .map((item, index) => ({
+        ...item,
+        color: majorDonutColors[index % majorDonutColors.length],
+        hasResponses: true,
+      }));
+
+    // สาขาในระบบที่ยังไม่มีผู้เรียนทำแบบประเมิน (ยอดเป็น 0 คน)
+    const pending = list
+      .filter((item) => item.value === 0)
+      .map((item) => ({
+        ...item,
+        color: '#94a3b8',
+        hasResponses: false,
+      }));
+
+    return [...evaluated, ...pending];
+  }, [filteredResponses, systemMajors]);
 
   // =========================================================================
   // 2. กราฟที่ 2: แผนภูมิโดนัท สัดส่วนระดับความพึงพอใจ (Satisfaction Donut)
@@ -1023,71 +1054,96 @@ export const Dashboard: React.FC = () => {
                 </h2>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                {majorChartData.length} สาขา
+                {majorChartData.filter((m) => m.hasResponses).length} / {majorChartData.length} สาขา
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              จำนวนผู้เรียนที่ตอบแบบประเมินจำแนกตามสาขาวิชา
+              จำนวนผู้เรียนที่ตอบแบบประเมินจำแนกตามสาขาวิชาในระบบ
             </p>
           </div>
 
-          <div className="relative w-full h-64 my-2">
-            {majorChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={majorChartData}
-                    cx="38%"
-                    cy="50%"
-                    innerRadius={42}
-                    outerRadius={76}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={renderMajorPieLabel}
-                    labelLine={false}
-                  >
-                    {majorChartData.map((entry, index) => (
-                      <Cell key={`major-cell-${index}`} fill={entry.color} stroke={isDark ? '#0f172a' : '#ffffff'} strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(v: any, name: any, item: any) => [`${v} คน (${item.payload.percentage}%)`, name]}
-                    contentStyle={{
-                      backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                      borderColor: isDark ? '#334155' : '#e2e8f0',
-                      color: isDark ? '#ffffff' : '#0f172a',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Legend 
-                    layout="vertical" 
-                    verticalAlign="middle" 
-                    align="right" 
-                    iconType="circle"
-                    wrapperStyle={{ maxHeight: '230px', overflowY: 'auto', paddingRight: '4px' }}
-                    formatter={(value) => {
-                      const item = majorChartData.find((m) => m.name === value);
-                      const pct = item ? `${item.percentage}%` : '';
-                      return (
+          <div className="my-2">
+            {majorChartData.filter((m) => m.hasResponses).length > 0 ? (
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {/* แผนภูมิโดนัท (ฝั่งซ้าย) */}
+                <div className="relative w-full sm:w-[46%] h-52 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={majorChartData.filter((m) => m.hasResponses)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={72}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                        label={renderMajorPieLabel}
+                        labelLine={false}
+                      >
+                        {majorChartData.filter((m) => m.hasResponses).map((entry, index) => (
+                          <Cell key={`major-cell-${index}`} fill={entry.color} stroke={isDark ? '#0f172a' : '#ffffff'} strokeWidth={2} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(v: any, name: any, item: any) => [`${v} คน (${item.payload.percentage}%)`, name]}
+                        contentStyle={{
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderColor: isDark ? '#334155' : '#e2e8f0',
+                          color: isDark ? '#ffffff' : '#0f172a',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* รายการ Legend แบบ HTML เรียงลำดับจากร้อยละมากไปน้อยตรงกับชิ้นพาย 100% */}
+                <div className="w-full sm:w-[54%] max-h-52 overflow-y-auto pr-1 space-y-1">
+                  {majorChartData.map((item) => (
+                    <div 
+                      key={item.name} 
+                      className={`flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-colors ${
+                        item.hasResponses 
+                          ? 'hover:bg-slate-50 dark:hover:bg-slate-800/60' 
+                          : 'opacity-60 bg-slate-50/50 dark:bg-slate-800/30'
+                      }`}
+                      title={`${item.name} (${item.value.toLocaleString()} คน, ${item.percentage}%)`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <span 
-                          className="text-[10px] text-slate-600 dark:text-slate-300 font-medium inline-flex items-center gap-1 max-w-[125px] sm:max-w-[145px]" 
-                          title={`${value} (${pct})`}
-                        >
-                          <span className="truncate">{value}</span>
-                          {pct && (
-                            <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500 font-bold shrink-0">
-                              ({pct})
-                            </span>
-                          )}
+                          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" 
+                          style={{ backgroundColor: item.color }} 
+                        />
+                        <span className="text-slate-700 dark:text-slate-300 truncate font-medium">
+                          {item.name}
                         </span>
-                      );
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                        {item.hasResponses ? (
+                          <>
+                            <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                              {item.percentage}%
+                            </span>
+                            <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500">
+                              ({item.value} คน)
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            รอประเมิน
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 text-xs">ไม่พบข้อมูลสาขาวิชา</div>
+              <div className="h-52 flex items-center justify-center text-slate-400 text-xs">
+                ไม่พบข้อมูลสาขาวิชา
+              </div>
             )}
           </div>
 
