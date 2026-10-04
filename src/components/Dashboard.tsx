@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -423,6 +423,58 @@ export const Dashboard: React.FC = () => {
       { name: 'ปานกลาง (2.5 - 3.49)', value: moderate, percentage: Math.round((moderate / total) * 100), color: '#f59e0b' },
       { name: 'ควรปรับปรุง (< 2.5)', value: improve, percentage: Math.round((improve / total) * 100), color: '#f43f5e' },
     ].filter((item) => item.value > 0);
+  }, [filteredResponses]);
+
+  // ฟังก์ชันจัดวางตัวเลขเปอร์เซ็นต์บนกราฟโดนัทสาขาวิชา ให้มีขนาดกะทัดรัดและอยู่กึ่งกลางเนื้อวงแหวน
+  // หากสัดส่วนน้อยกว่า 5% จะไม่แสดงตัวเลขบนชิ้นพาย เพื่อป้องกันตัวเลขกระจุกตัวทับซ้อนกัน โดยดูค่าได้จาก Legend ด้านขวา
+  const renderMajorPieLabel = useCallback(
+    ({ cx, cy, midAngle, innerRadius, outerRadius, payload, percent }: any) => {
+      const percentage = payload?.percentage ?? Math.round((percent || 0) * 100);
+      if (percentage < 5) return null;
+      const RADIAN = Math.PI / 180;
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.52;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="#ffffff"
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="text-[10px] font-bold font-mono pointer-events-none"
+          style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.75))' }}
+        >
+          {percentage}%
+        </text>
+      );
+    },
+    []
+  );
+
+  // รายการระดับความพึงพอใจ 4 ระดับ สำหรับจัดแสดงผลเป็นคู่ 2 แถว (2x2 Grid) ด้านล่างกราฟ
+  const satisfactionLegendList = useMemo(() => {
+    let excellent = 0; // 4.50 - 5.00
+    let good = 0;      // 3.50 - 4.49
+    let moderate = 0;  // 2.50 - 3.49
+    let improve = 0;   // < 2.50
+
+    filteredResponses.forEach((r) => {
+      const s = r.average_score || 0;
+      if (s >= 4.5) excellent++;
+      else if (s >= 3.5) good++;
+      else if (s >= 2.5) moderate++;
+      else improve++;
+    });
+
+    const total = filteredResponses.length || 1;
+    return [
+      { label: 'ดีเยี่ยม', range: '4.50 - 5.00', value: excellent, percentage: Math.round((excellent / total) * 100), color: '#10b981' },
+      { label: 'ดี', range: '3.50 - 4.49', value: good, percentage: Math.round((good / total) * 100), color: '#0284c7' },
+      { label: 'ปานกลาง', range: '2.50 - 3.49', value: moderate, percentage: Math.round((moderate / total) * 100), color: '#f59e0b' },
+      { label: 'ควรปรับปรุง', range: '< 2.50', value: improve, percentage: Math.round((improve / total) * 100), color: '#f43f5e' },
+    ];
   }, [filteredResponses]);
 
   // =========================================================================
@@ -985,13 +1037,13 @@ export const Dashboard: React.FC = () => {
                 <PieChart>
                   <Pie
                     data={majorChartData}
-                    cx="45%"
+                    cx="38%"
                     cy="50%"
-                    innerRadius={45}
-                    outerRadius={80}
+                    innerRadius={42}
+                    outerRadius={76}
                     paddingAngle={2}
                     dataKey="value"
-                    label={(props: any) => `${props.payload?.percentage ?? Math.round((props.percent || 0) * 100)}%`}
+                    label={renderMajorPieLabel}
                     labelLine={false}
                   >
                     {majorChartData.map((entry, index) => (
@@ -1013,7 +1065,24 @@ export const Dashboard: React.FC = () => {
                     verticalAlign="middle" 
                     align="right" 
                     iconType="circle"
-                    formatter={(value) => <span className="text-[10px] text-slate-600 dark:text-slate-300 font-medium">{value}</span>}
+                    wrapperStyle={{ maxHeight: '230px', overflowY: 'auto', paddingRight: '4px' }}
+                    formatter={(value) => {
+                      const item = majorChartData.find((m) => m.name === value);
+                      const pct = item ? `${item.percentage}%` : '';
+                      return (
+                        <span 
+                          className="text-[10px] text-slate-600 dark:text-slate-300 font-medium inline-flex items-center gap-1 max-w-[125px] sm:max-w-[145px]" 
+                          title={`${value} (${pct})`}
+                        >
+                          <span className="truncate">{value}</span>
+                          {pct && (
+                            <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500 font-bold shrink-0">
+                              ({pct})
+                            </span>
+                          )}
+                        </span>
+                      );
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -1024,7 +1093,7 @@ export const Dashboard: React.FC = () => {
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
             <span>ผู้ประเมินรวม: <strong className="text-slate-800 dark:text-white font-bold">{stats.totalCount.toLocaleString()}</strong> คน</span>
-            <span className="text-blue-600 dark:text-blue-400 font-semibold">ตามแบบ Looker Studio</span>
+            <span className="text-slate-400 dark:text-slate-500 text-[10px]">รวมทุกสาขา</span>
           </div>
         </div>
 
@@ -1047,55 +1116,81 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="relative w-full h-64 my-2">
+          <div className="my-2">
             {satisfactionChartData.length > 0 ? (
-              <div className="relative w-full h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={satisfactionChartData}
-                      cx="50%"
-                      cy="48%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {satisfactionChartData.map((entry, index) => (
-                        <Cell key={`sat-cell-${index}`} fill={entry.color} stroke={isDark ? '#0f172a' : '#ffffff'} strokeWidth={2} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(v: any, name: any, item: any) => [`${v} ครั้ง (${item.payload.percentage}%)`, name]}
-                      contentStyle={{
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        borderColor: isDark ? '#334155' : '#e2e8f0',
-                        color: isDark ? '#ffffff' : '#0f172a',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={32} 
-                      iconType="circle"
-                      formatter={(value) => <span className="text-[10px] text-slate-600 dark:text-slate-300 font-medium">{value}</span>}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div>
+                <div className="relative w-full h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={satisfactionChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={74}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {satisfactionChartData.map((entry, index) => (
+                          <Cell key={`sat-cell-${index}`} fill={entry.color} stroke={isDark ? '#0f172a' : '#ffffff'} strokeWidth={2} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(v: any, name: any, item: any) => [`${v} ครั้ง (${item.payload.percentage}%)`, name]}
+                        contentStyle={{
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderColor: isDark ? '#334155' : '#e2e8f0',
+                          color: isDark ? '#ffffff' : '#0f172a',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
 
-                {/* ค่าเฉลี่ยรวมตรงกลางรูกลวงของโดนัท */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
-                    {stats.overallAvg.toFixed(2)}
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    เฉลี่ยรวม
-                  </span>
+                  {/* ค่าเฉลี่ยรวมตรงกลางรูกลวงของโดนัท (ตรงกึ่งกลางพอดี) */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                      {stats.overallAvg.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      เฉลี่ยรวม
+                    </span>
+                  </div>
+                </div>
+
+                {/* รายละเอียดระดับความพึงพอใจ วางเป็นคู่ 2 แถว (2x2 Grid) สมดุลและอ่านง่าย */}
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                  {satisfactionLegendList.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: item.color }} />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight">
+                            {item.label}
+                          </span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono leading-tight">
+                            {item.range}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-1.5">
+                        <span className="text-xs font-bold font-mono text-slate-900 dark:text-white block leading-tight">
+                          {item.percentage}%
+                        </span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono block leading-tight">
+                          {item.value} คน
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 text-xs">ไม่พบข้อมูลความพึงพอใจ</div>
+              <div className="h-64 flex items-center justify-center text-slate-400 text-xs">ไม่พบข้อมูลความพึงพอใจ</div>
             )}
           </div>
 
